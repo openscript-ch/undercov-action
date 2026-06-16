@@ -21,6 +21,10 @@ inputs:
     description: Undercov release tag to use (for example v0.2.0). Empty uses latest.
     required: false
     default: ''
+  sha256:
+    description: Optional SHA-256 checksum for the resolved undercov binary asset.
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -133,6 +137,7 @@ runs:
         CACHE_DIR: ${{ steps.resolve.outputs.cache_dir }}
         BIN_PATH: ${{ steps.resolve.outputs.bin_path }}
         SOURCES_CSV: ${{ steps.resolve.outputs.sources_csv }}
+        EXPECTED_SHA256: ${{ inputs.sha256 }}
         GITHUB_PATH_FILE: ${{ github.path }}
       run: |
         set -euo pipefail
@@ -159,6 +164,28 @@ runs:
 
           if [[ "${downloaded}" != "true" ]]; then
             echo "Failed to download undercov asset ${ASSET_NAME} for tag ${TAG}" >&2
+            exit 1
+          fi
+        fi
+
+        if [[ -n "${EXPECTED_SHA256:-}" ]]; then
+          expected_sha="$(printf '%s' "${EXPECTED_SHA256}" | tr '[:upper:]' '[:lower:]')"
+          if command -v sha256sum >/dev/null 2>&1; then
+            actual_sha="$(sha256sum "${BIN_PATH}" | awk '{print $1}')"
+          elif command -v shasum >/dev/null 2>&1; then
+            actual_sha="$(shasum -a 256 "${BIN_PATH}" | awk '{print $1}')"
+          elif command -v openssl >/dev/null 2>&1; then
+            actual_sha="$(openssl dgst -sha256 "${BIN_PATH}" | awk '{print $NF}')"
+          else
+            echo "No SHA-256 tool available (sha256sum, shasum, or openssl)" >&2
+            exit 1
+          fi
+
+          actual_sha="$(printf '%s' "${actual_sha}" | tr '[:upper:]' '[:lower:]')"
+          if [[ "${actual_sha}" != "${expected_sha}" ]]; then
+            echo "SHA-256 mismatch for ${ASSET_NAME}" >&2
+            echo "Expected: ${expected_sha}" >&2
+            echo "Actual:   ${actual_sha}" >&2
             exit 1
           fi
         fi

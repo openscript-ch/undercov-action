@@ -36,6 +36,8 @@ jobs:
           branch: coverage
           # Optional: pin to a specific release tag.
           # version: v0.2.0
+          # Optional: verify the downloaded binary checksum.
+          # sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
 ## Inputs
@@ -45,6 +47,7 @@ jobs:
 - `threshold`: Minimum coverage percentage. Default: `0`.
 - `check-regression`: Fail if coverage regresses compared to previously stored data. Default: `false`.
 - `version`: Undercov release tag to use (for example `v0.2.0`). Default: empty, which resolves to the latest release.
+- `sha256`: Optional SHA-256 checksum for the resolved undercov binary asset. If set, the action verifies the downloaded (or cached) binary and fails on mismatch.
 
 ## Binary Download, Caching and PATH
 
@@ -54,4 +57,5 @@ jobs:
   - On Gitea/Forgejo runners: Forgejo (Codeberg) first, then GitHub.
 - The action resolves the correct binary asset for the current runner OS and architecture.
 - The binary is cached using `actions/cache` and reused in subsequent runs.
+- If `sha256` is provided, the action validates the binary checksum before execution.
 - The binary directory is added to `PATH`, and the action runs `undercov` directly.
