@@ -1,0 +1,176 @@
+name: undercov
+description: Track LCOV coverage in a dedicated git branch and fail on under-coverage.
+inputs:
+  files:
+    description: Glob pattern for LCOV files.
+    required: false
+    default: '**/coverage/lcov.info'
+  branch:
+    description: Branch used to store coverage data.
+    required: false
+    default: coverage
+  threshold:
+    description: Minimum coverage percentage.
+    required: false
+    default: '0'
+  check-regression:
+    description: Fail if coverage regresses compared to previously stored data.
+    required: false
+    default: 'false'
+  version:
+    description: Undercov release tag to use (for example v0.2.0). Empty uses latest.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+        WORKSPACE: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+
+        case "${RUNNER_OS}" in
+          Linux)
+            os_name="linux"
+            exe_name="undercov"
+            ;;
+          Windows)
+            os_name="windows"
+            exe_name="undercov.exe"
+            ;;
+          *)
+            echo "Unsupported RUNNER_OS: ${RUNNER_OS}" >&2
+            exit 1
+            ;;
+        esac
+
+        case "${RUNNER_ARCH}" in
+          X64)
+            arch_name="x86_64"
+            ;;
+          ARM64)
+            arch_name="arm64"
+            ;;
+          ARM)
+            arch_name="armv7"
+            ;;
+          *)
+            echo "Unsupported RUNNER_ARCH: ${RUNNER_ARCH}" >&2
+            exit 1
+            ;;
+        esac
+
+        if [[ "${GITHUB_SERVER_URL:-}" == "https://github.com" ]]; then
+          sources_csv="github,forgejo"
+        else
+          sources_csv="forgejo,github"
+        fi
+
+        version_input="${INPUT_VERSION:-}"
+        if [[ -n "${version_input}" ]]; then
+          if [[ "${version_input}" =~ ^v ]]; then
+            tag="${version_input}"
+          else
+            tag="v${version_input}"
+          fi
+        else
+          IFS=',' read -r -a sources <<< "${sources_csv}"
+          tag=""
+          for source in "${sources[@]}"; do
+            if [[ "${source}" == "github" ]]; then
+              api_url="https://api.github.com/repos/openscript-ch/undercov/releases/latest"
+            else
+              api_url="https://codeberg.org/api/v1/repos/openscript-ch/undercov/releases/latest"
+            fi
+
+            if response="$(curl -fsSL "${api_url}" 2>/dev/null)"; then
+              latest_tag="$(printf '%s\n' "${response}" | awk -F '"' '/"tag_name"[[:space:]]*:/ {print $4; exit}')"
+              if [[ -n "${latest_tag}" ]]; then
+                tag="${latest_tag}"
+                break
+              fi
+            fi
+          done
+
+          if [[ -z "${tag}" ]]; then
+            echo "Could not resolve latest undercov release tag from GitHub or Forgejo" >&2
+            exit 1
+          fi
+        fi
+
+        asset_name="undercov-${tag}-${os_name}-${arch_name}"
+        if [[ "${os_name}" == "windows" ]]; then
+          asset_name="${asset_name}.exe"
+        fi
+
+        cache_dir="${WORKSPACE}/.undercov-cache/${tag}/${os_name}-${arch_name}"
+        cache_key="undercov-${tag}-${os_name}-${arch_name}"
+        bin_path="${cache_dir}/${exe_name}"
+
+        {
+          echo "tag=${tag}"
+          echo "asset_name=${asset_name}"
+          echo "cache_dir=${cache_dir}"
+          echo "cache_key=${cache_key}"
+          echo "bin_path=${bin_path}"
+          echo "sources_csv=${sources_csv}"
+          echo "exe_name=${exe_name}"
+        } >> "${GITHUB_OUTPUT}"
+
+    - uses: actions/cache@v4
+      with:
+        path: ${{ steps.resolve.outputs.cache_dir }}
+        key: ${{ steps.resolve.outputs.cache_key }}
+
+    - shell: bash
+      env:
+        TAG: ${{ steps.resolve.outputs.tag }}
+        ASSET_NAME: ${{ steps.resolve.outputs.asset_name }}
+        CACHE_DIR: ${{ steps.resolve.outputs.cache_dir }}
+        BIN_PATH: ${{ steps.resolve.outputs.bin_path }}
+        SOURCES_CSV: ${{ steps.resolve.outputs.sources_csv }}
+        GITHUB_PATH_FILE: ${{ github.path }}
+      run: |
+        set -euo pipefail
+
+        mkdir -p "${CACHE_DIR}"
+
+        if [[ ! -x "${BIN_PATH}" ]]; then
+          IFS=',' read -r -a sources <<< "${SOURCES_CSV}"
+          downloaded="false"
+
+          for source in "${sources[@]}"; do
+            if [[ "${source}" == "github" ]]; then
+              download_url="https://github.com/openscript-ch/undercov/releases/download/${TAG}/${ASSET_NAME}"
+            else
+              download_url="https://codeberg.org/openscript-ch/undercov/releases/download/${TAG}/${ASSET_NAME}"
+            fi
+
+            if curl -fsSL "${download_url}" -o "${BIN_PATH}" 2>/dev/null; then
+              chmod +x "${BIN_PATH}"
+              downloaded="true"
+              break
+            fi
+          done
+
+          if [[ "${downloaded}" != "true" ]]; then
+            echo "Failed to download undercov asset ${ASSET_NAME} for tag ${TAG}" >&2
+            exit 1
+          fi
+        fi
+
+        echo "${CACHE_DIR}" >> "${GITHUB_PATH_FILE}"
+
+    - shell: bash
+      run: |
+        set -euo pipefail
+        export PATH="${{ steps.resolve.outputs.cache_dir }}:${PATH}"
+        if ! command -v undercov >/dev/null 2>&1; then
+          echo "undercov binary not found on PATH after setup" >&2
+          exit 1
+        fi
+        undercov --files '${{ inputs.files }}' --branch '${{ inputs.branch }}' --threshold '${{ inputs.threshold }}' --check-regression='${{ inputs.check-regression }}'
