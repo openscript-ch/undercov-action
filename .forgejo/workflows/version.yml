@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo 'v0.0.0')"
+          LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
           NEXT_TAG="$(git-cliff --bumped-version 2>/dev/null || true)"
 
           if [[ -z "${NEXT_TAG}" ]]; then
@@ -60,7 +60,7 @@ jobs:
             NEXT_TAG="v${NEXT_TAG}"
           fi
 
-          if [[ "${NEXT_TAG}" == "${LAST_TAG}" ]]; then
+          if [[ -n "${LAST_TAG}" && "${NEXT_TAG}" == "${LAST_TAG}" ]]; then
             echo "No new release version detected."
             echo "has_release=false" >> "${GITHUB_OUTPUT}"
             exit 0
