@@ -113,6 +113,34 @@ jobs:
 
           git -c http.extraheader="Authorization: token ${PUSH_TOKEN}" push --force-with-lease origin "${BRANCH_NAME}"
 
+      - name: Close stale release PRs
+        if: steps.release.outputs.has_release == 'true'
+        env:
+          API_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+
+          API_URL="${{ github.api_url }}"
+          REPO="${{ github.repository }}"
+          OWNER="${{ github.repository_owner }}"
+          NEXT_TAG="${{ steps.release.outputs.next_tag }}"
+
+          ALL_PRS="$(curl -fsSL \
+            -H "Authorization: token ${API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${API_URL}/repos/${REPO}/pulls?state=open&head=${OWNER}:release/v*&base=main")"
+
+          echo "${ALL_PRS}" | jq -r '.[] | select(.head.ref != "release/'"${NEXT_TAG}"'") | .number' | while read -r PR_NUMBER; do
+            if [[ -n "${PR_NUMBER}" ]]; then
+              curl -fsSL -X PATCH \
+                -H "Authorization: token ${API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{"state":"closed"}' \
+                "${API_URL}/repos/${REPO}/pulls/${PR_NUMBER}"
+              echo "Closed stale release PR #${PR_NUMBER}."
+            fi
+          done
+
       - name: Create or update release PR
         if: steps.release.outputs.has_release == 'true'
         env:
