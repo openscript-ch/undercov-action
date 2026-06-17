@@ -18,7 +18,7 @@ body = """
 trim = true
 
 [bump]
-initial_tag = "v0.0.0"
+initial_tag = "v1.0.0"
 breaking_always_increment_major = true
 
 [git]
