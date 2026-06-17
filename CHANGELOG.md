@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.0 - 2026-06-17
+
+### Features
+- Bump major and minor tags upon release
+
 ## v1.0.0 - 2026-06-17
 
 ### Bug Fixes
