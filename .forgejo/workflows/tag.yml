@@ -46,6 +46,11 @@ jobs:
             exit 1
           fi
 
+          VERSION_CORE="${TAG_NAME#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${VERSION_CORE}"
+          MAJOR_TAG="v${MAJOR}"
+          MINOR_TAG="v${MAJOR}.${MINOR}"
+
           if git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
             echo "Tag ${TAG_NAME} already exists, skipping."
             echo "tag_name=" >> "${GITHUB_OUTPUT}"
@@ -57,4 +62,11 @@ jobs:
 
           git tag -a "${TAG_NAME}" "${MERGE_SHA}" -m "Release ${TAG_NAME}"
           git -c http.extraheader="Authorization: token ${PUSH_TOKEN}" push origin "refs/tags/${TAG_NAME}"
+
+          # Keep moving major/minor tags in sync with the latest patch release.
+          git tag -fa "${MAJOR_TAG}" "${MERGE_SHA}" -m "Release line ${MAJOR_TAG}"
+          git tag -fa "${MINOR_TAG}" "${MERGE_SHA}" -m "Release line ${MINOR_TAG}"
+          git -c http.extraheader="Authorization: token ${PUSH_TOKEN}" push --force origin "refs/tags/${MAJOR_TAG}"
+          git -c http.extraheader="Authorization: token ${PUSH_TOKEN}" push --force origin "refs/tags/${MINOR_TAG}"
+
           echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
