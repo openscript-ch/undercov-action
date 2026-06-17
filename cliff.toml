@@ -35,6 +35,7 @@ commit_parsers = [
   { message = "^test", skip = true },
   { message = "^ci", skip = true },
   { message = "^build", skip = true },
+  { message = ".*", skip = true },
 ]
 tag_pattern = "v[0-9]*"
 skip_tags = ""

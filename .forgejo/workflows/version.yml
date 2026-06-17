@@ -48,7 +48,15 @@ jobs:
           set -euo pipefail
 
           LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
-          NEXT_TAG="$(git-cliff --bumped-version 2>/dev/null || true)"
+
+          if [[ -z "${LAST_TAG}" ]]; then
+            # No tags exist, analyze all commits from the root
+            ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD)
+            NEXT_TAG="$(git-cliff --bumped-version -- ${ROOT_COMMIT}..HEAD 2>/dev/null || true)"
+          else
+            # Tags exist, analyze commits since the last tag
+            NEXT_TAG="$(git-cliff --bumped-version -- ${LAST_TAG}..HEAD 2>/dev/null || true)"
+          fi
 
           if [[ -z "${NEXT_TAG}" ]]; then
             echo "No releasable conventional commits found."
