@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.1 - 2026-06-18
+
+### Bug Fixes
+- Tag retriveal
+
 ## v1.1.0 - 2026-06-17
 
 ### Features
