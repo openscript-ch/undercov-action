@@ -144,7 +144,6 @@ runs:
         BIN_PATH: ${{ steps.resolve.outputs.bin_path }}
         SOURCES_CSV: ${{ steps.resolve.outputs.sources_csv }}
         EXPECTED_SHA256: ${{ inputs.sha256 }}
-        GITHUB_PATH_FILE: ${{ github.path }}
       run: |
         set -euo pipefail
 
@@ -196,7 +195,10 @@ runs:
           fi
         fi
 
-        echo "${CACHE_DIR}" >> "${GITHUB_PATH_FILE}"
+        # act may not populate github.path, but GITHUB_PATH is available on hosted runners.
+        if [[ -n "${GITHUB_PATH:-}" ]]; then
+          echo "${CACHE_DIR}" >> "${GITHUB_PATH}"
+        fi
 
     - shell: bash
       run: |
