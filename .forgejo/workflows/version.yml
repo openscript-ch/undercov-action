@@ -47,6 +47,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          HEAD_SUBJECT="$(git log -1 --pretty=%s HEAD)"
+          HEAD_BODY="$(git log -1 --pretty=%b HEAD)"
+
           LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
 
           if [[ -z "${LAST_TAG}" ]]; then
@@ -77,6 +80,14 @@ jobs:
           if [[ ! "${NEXT_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Invalid next tag format: ${NEXT_TAG}" >&2
             exit 1
+          fi
+
+          if [[ "${HEAD_SUBJECT}" == "chore(release): ${NEXT_TAG}" ]] \
+            || [[ "${HEAD_SUBJECT}" == *"release/${NEXT_TAG}"* ]] \
+            || [[ "${HEAD_BODY}" == *"release/${NEXT_TAG}"* ]]; then
+            echo "HEAD already represents the ${NEXT_TAG} release merge/commit."
+            echo "has_release=false" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
 
           BRANCH_NAME="release/${NEXT_TAG}"

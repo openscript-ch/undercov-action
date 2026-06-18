@@ -4,7 +4,7 @@ inputs:
   files:
     description: Glob pattern for LCOV files.
     required: false
-    default: '**/coverage/lcov.info'
+    default: "**/coverage/lcov.info"
   branch:
     description: Branch used to store coverage data.
     required: false
@@ -12,19 +12,19 @@ inputs:
   threshold:
     description: Minimum coverage percentage.
     required: false
-    default: '0'
+    default: "0"
   check-regression:
     description: Fail if coverage regresses compared to previously stored data.
     required: false
-    default: 'false'
+    default: "false"
   version:
     description: Undercov release tag to use (for example v0.2.0). Empty uses latest.
     required: false
-    default: ''
+    default: ""
   sha256:
     description: Optional SHA-256 checksum for the resolved undercov binary asset.
     required: false
-    default: ''
+    default: ""
 runs:
   using: composite
   steps:
@@ -82,6 +82,10 @@ runs:
             tag="v${version_input}"
           fi
         else
+          extract_tag() {
+            tr -d '\r' | sed -nE 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1
+          }
+
           IFS=',' read -r -a sources <<< "${sources_csv}"
           tag=""
           for source in "${sources[@]}"; do
@@ -92,10 +96,12 @@ runs:
             fi
 
             if response="$(curl -fsSL "${api_url}" 2>/dev/null)"; then
-              latest_tag="$(printf '%s\n' "${response}" | awk -F '"' '/"tag_name"[[:space:]]*:/ {print $4; exit}')"
-              if [[ -n "${latest_tag}" ]]; then
+              latest_tag="$(printf '%s\n' "${response}" | extract_tag)"
+              if [[ -n "${latest_tag}" && "${latest_tag}" =~ ^v[0-9] ]]; then
                 tag="${latest_tag}"
                 break
+              elif [[ -n "${latest_tag}" ]]; then
+                echo "Ignoring invalid latest release tag from ${api_url}: ${latest_tag}" >&2
               fi
             fi
           done
