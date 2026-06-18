@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.2 - 2026-06-18
+
+### Bug Fixes
+- Action cache usage
+
 ## v1.1.1 - 2026-06-18
 
 ### Bug Fixes
