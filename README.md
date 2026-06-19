@@ -34,6 +34,10 @@ jobs:
           threshold: 80
           files: '**/coverage/lcov.info'
           branch: coverage
+          # Optional: push updated coverage data to the remote branch.
+          # push: true
+          # remote: origin
+          # push-force-with-lease: true
           # Optional: pin to a specific release tag.
           # version: v0.2.0
           # Optional: verify the downloaded binary checksum.
@@ -46,8 +50,13 @@ jobs:
 - `branch`: Branch used to store coverage data. Default: `coverage`.
 - `threshold`: Minimum coverage percentage. Default: `0`.
 - `check-regression`: Fail if coverage regresses compared to previously stored data. Default: `false`.
+- `push`: Push the updated coverage branch to the configured remote. Default: `false`.
+- `remote`: Remote used when `push` is enabled. Default: `origin`.
+- `push-force-with-lease`: Use `--force-with-lease` when pushing the coverage branch. Default: `false`.
 - `version`: Undercov release tag to use (for example `v0.2.0`). Default: empty, which resolves to the latest release.
 - `sha256`: Optional SHA-256 checksum for the resolved undercov binary asset. If set, the action verifies the downloaded (or cached) binary and fails on mismatch.
+
+When `push` is enabled, ensure the workflow has permission to push to the configured remote branch and the checkout step uses credentials that can write.
 
 ## Binary Download, Caching and PATH
 

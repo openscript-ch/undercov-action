@@ -17,6 +17,18 @@ inputs:
     description: Fail if coverage regresses compared to previously stored data.
     required: false
     default: "false"
+  push:
+    description: Push the updated coverage branch to the configured remote.
+    required: false
+    default: "false"
+  remote:
+    description: Remote used when push is enabled.
+    required: false
+    default: origin
+  push-force-with-lease:
+    description: Use --force-with-lease when pushing the coverage branch.
+    required: false
+    default: "false"
   version:
     description: Undercov release tag to use (for example v0.2.0). Empty uses latest.
     required: false
@@ -211,7 +223,7 @@ runs:
           echo "undercov binary not found on PATH after setup" >&2
           exit 1
         fi
-        undercov --files '${{ inputs.files }}' --branch '${{ inputs.branch }}' --threshold '${{ inputs.threshold }}' --check-regression='${{ inputs.check-regression }}'
+        undercov --files '${{ inputs.files }}' --branch '${{ inputs.branch }}' --threshold '${{ inputs.threshold }}' --check-regression='${{ inputs.check-regression }}' --push='${{ inputs.push }}' --remote='${{ inputs.remote }}' --push-force-with-lease='${{ inputs.push-force-with-lease }}'
 
     - if: ${{ always() && steps.cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v5
