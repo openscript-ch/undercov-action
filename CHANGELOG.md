@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.0 - 2026-06-19
+
+### Features
+- Add git options
+
 ## v1.1.3 - 2026-06-18
 
 ### Bug Fixes
