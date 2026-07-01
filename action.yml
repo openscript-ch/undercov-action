@@ -144,7 +144,7 @@ runs:
         } >> "${GITHUB_OUTPUT}"
 
     - id: cache-restore
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: ${{ steps.resolve.outputs.cache_dir }}
         key: ${{ steps.resolve.outputs.cache_key }}
@@ -226,7 +226,7 @@ runs:
         undercov --files '${{ inputs.files }}' --branch '${{ inputs.branch }}' --threshold '${{ inputs.threshold }}' --check-regression='${{ inputs.check-regression }}' --push='${{ inputs.push }}' --remote='${{ inputs.remote }}' --push-force-with-lease='${{ inputs.push-force-with-lease }}'
 
     - if: ${{ always() && steps.cache-restore.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       with:
         path: ${{ steps.resolve.outputs.cache_dir }}
         key: ${{ steps.resolve.outputs.cache_key }}
