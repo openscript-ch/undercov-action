@@ -16,6 +16,10 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 jobs:
   coverage:
@@ -34,6 +38,10 @@ jobs:
           threshold: 80
           files: '**/coverage/lcov.info'
           branch: coverage
+          # Optional: explicitly control logical coverage refs.
+          # For pull requests, these map naturally to head/base refs.
+          # current-ref: ${{ github.head_ref }}
+          # target-ref: ${{ github.base_ref }}
           # Optional: push updated coverage data to the remote branch.
           # push: true
           # remote: origin
@@ -47,7 +55,9 @@ jobs:
 ## Inputs
 
 - `files`: Glob pattern for LCOV files. Default: `**/coverage/lcov.info`.
-- `branch`: Branch used to store coverage data. Default: `coverage`.
+- `branch`: Git branch used to store undercov data snapshots. Default: `coverage`.
+- `current-ref`: Logical source ref used to store current coverage data. Default: empty.
+- `target-ref`: Logical target ref used as regression baseline. Default: empty.
 - `threshold`: Minimum coverage percentage. Default: `0`.
 - `check-regression`: Fail if coverage regresses compared to previously stored data. Default: `false`.
 - `push`: Push the updated coverage branch to the configured remote. Default: `false`.
@@ -55,6 +65,30 @@ jobs:
 - `push-force-with-lease`: Use `--force-with-lease` when pushing the coverage branch. Default: `false`.
 - `version`: Undercov release tag to use (for example `v0.2.0`). Default: empty, which resolves to the latest release.
 - `sha256`: Optional SHA-256 checksum for the resolved undercov binary asset. If set, the action verifies the downloaded (or cached) binary and fails on mismatch.
+
+When `current-ref` and `target-ref` are not set, undercov resolves them from runtime context:
+
+- In PR context (GitHub/Forgejo style):
+  - `current-ref` -> PR head ref
+  - `target-ref` -> PR base/target ref
+- Outside PR context (for example push on `main`):
+  - `current-ref` -> current branch context
+  - `target-ref` -> `current-ref`
+
+This means push runs on `main` compare against previously stored `main` coverage, while pull requests compare PR coverage against the PR target branch coverage.
+
+### Recommended PR + push setup
+
+```yaml
+- name: Check coverage with undercov
+  uses: openscript-ch/undercov-action@v1
+  with:
+    branch: coverage
+    current-ref: ${{ github.head_ref }}
+    target-ref: ${{ github.base_ref }}
+    check-regression: 'true'
+    push: 'true'
+```
 
 When `push` is enabled, ensure the workflow has permission to push to the configured remote branch and the checkout step uses credentials that can write.
 
