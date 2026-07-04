@@ -9,6 +9,14 @@ inputs:
     description: Branch used to store coverage data.
     required: false
     default: coverage
+  current-ref:
+    description: Logical source ref used to store current coverage data.
+    required: false
+    default: ""
+  target-ref:
+    description: Logical target ref used as regression baseline.
+    required: false
+    default: ""
   threshold:
     description: Minimum coverage percentage.
     required: false
@@ -223,7 +231,7 @@ runs:
           echo "undercov binary not found on PATH after setup" >&2
           exit 1
         fi
-        undercov --files '${{ inputs.files }}' --branch '${{ inputs.branch }}' --threshold '${{ inputs.threshold }}' --check-regression='${{ inputs.check-regression }}' --push='${{ inputs.push }}' --remote='${{ inputs.remote }}' --push-force-with-lease='${{ inputs.push-force-with-lease }}'
+        undercov --files '${{ inputs.files }}' --branch '${{ inputs.branch }}' --current-ref='${{ inputs.current-ref }}' --target-ref='${{ inputs.target-ref }}' --threshold '${{ inputs.threshold }}' --check-regression='${{ inputs.check-regression }}' --push='${{ inputs.push }}' --remote='${{ inputs.remote }}' --push-force-with-lease='${{ inputs.push-force-with-lease }}'
 
     - if: ${{ always() && steps.cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
