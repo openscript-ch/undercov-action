@@ -50,16 +50,18 @@ jobs:
           HEAD_SUBJECT="$(git log -1 --pretty=%s HEAD)"
           HEAD_BODY="$(git log -1 --pretty=%b HEAD)"
 
-          LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          LAST_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
 
           if [[ -z "${LAST_TAG}" ]]; then
             # No tags exist, analyze all commits from the root
             ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD)
-            NEXT_TAG="$(git-cliff --bumped-version -- ${ROOT_COMMIT}..HEAD 2>/dev/null || true)"
+            COMMIT_RANGE="${ROOT_COMMIT}..HEAD"
           else
             # Tags exist, analyze commits since the last tag
-            NEXT_TAG="$(git-cliff --bumped-version -- ${LAST_TAG}..HEAD 2>/dev/null || true)"
+            COMMIT_RANGE="${LAST_TAG}..HEAD"
           fi
+
+          NEXT_TAG="$(git-cliff --bumped-version -- ${COMMIT_RANGE} 2>/dev/null || true)"
 
           if [[ -z "${NEXT_TAG}" ]]; then
             echo "No releasable conventional commits found."
