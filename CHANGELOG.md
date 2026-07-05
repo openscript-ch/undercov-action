@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 - 2026-07-05
+
+### Features
+- Check for coverage regressions in pull requests
+- Enhance pull request coverage checks with additional event types and logical refs
+
 ## v1.2.0 - 2026-06-19
 
 ### Features
