@@ -47,17 +47,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          HEAD_SUBJECT="$(git log -1 --pretty=%s HEAD)"
-          HEAD_BODY="$(git log -1 --pretty=%b HEAD)"
-
           LAST_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
 
           if [[ -z "${LAST_TAG}" ]]; then
-            # No tags exist, analyze all commits from the root
             ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD)
             COMMIT_RANGE="${ROOT_COMMIT}..HEAD"
           else
-            # Tags exist, analyze commits since the last tag
             COMMIT_RANGE="${LAST_TAG}..HEAD"
           fi
 
@@ -84,25 +79,21 @@ jobs:
             exit 1
           fi
 
-          if [[ "${HEAD_SUBJECT}" == "chore(release): ${NEXT_TAG}" ]] \
-            || [[ "${HEAD_SUBJECT}" == *"release/${NEXT_TAG}"* ]] \
-            || [[ "${HEAD_BODY}" == *"release/${NEXT_TAG}"* ]]; then
-            echo "HEAD already represents the ${NEXT_TAG} release merge/commit."
-            echo "has_release=false" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          BRANCH_NAME="release/${NEXT_TAG}"
+          BRANCH_NAME="release"
 
           echo "has_release=true" >> "${GITHUB_OUTPUT}"
           echo "next_tag=${NEXT_TAG}" >> "${GITHUB_OUTPUT}"
           echo "branch_name=${BRANCH_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "commit_range=${COMMIT_RANGE}" >> "${GITHUB_OUTPUT}"
 
       - name: Generate changelog entry
         if: steps.release.outputs.has_release == 'true'
         run: |
           set -euo pipefail
-          git-cliff --unreleased --tag "${{ steps.release.outputs.next_tag }}" --prepend CHANGELOG.md
+          git-cliff \
+            --tag "${{ steps.release.outputs.next_tag }}" \
+            --prepend CHANGELOG.md \
+            -- ${{ steps.release.outputs.commit_range }}
 
       - name: Commit and push release branch
         if: steps.release.outputs.has_release == 'true'
@@ -124,35 +115,7 @@ jobs:
           git add CHANGELOG.md
           git commit -m "chore(release): ${{ steps.release.outputs.next_tag }}"
 
-          git -c http.extraheader="Authorization: token ${PUSH_TOKEN}" push --force-with-lease origin "${BRANCH_NAME}"
-
-      - name: Close stale release PRs
-        if: steps.release.outputs.has_release == 'true'
-        env:
-          API_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
-        run: |
-          set -euo pipefail
-
-          API_URL="${{ github.api_url }}"
-          REPO="${{ github.repository }}"
-          OWNER="${{ github.repository_owner }}"
-          NEXT_TAG="${{ steps.release.outputs.next_tag }}"
-
-          ALL_PRS="$(curl -fsSL \
-            -H "Authorization: token ${API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "${API_URL}/repos/${REPO}/pulls?state=open&head=${OWNER}:release/v*&base=main")"
-
-          echo "${ALL_PRS}" | jq -r '.[] | select(.head.ref != "release/'"${NEXT_TAG}"'") | .number' | while read -r PR_NUMBER; do
-            if [[ -n "${PR_NUMBER}" ]]; then
-              curl -fsSL -X PATCH \
-                -H "Authorization: token ${API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d '{"state":"closed"}' \
-                "${API_URL}/repos/${REPO}/pulls/${PR_NUMBER}"
-              echo "Closed stale release PR #${PR_NUMBER}."
-            fi
-          done
+          git -c http.extraheader="Authorization: token ${PUSH_TOKEN}" push --force origin "${BRANCH_NAME}"
 
       - name: Create or update release PR
         if: steps.release.outputs.has_release == 'true'
@@ -163,7 +126,6 @@ jobs:
 
           API_URL="${{ github.api_url }}"
           REPO="${{ github.repository }}"
-          OWNER="${{ github.repository_owner }}"
           BRANCH_NAME="${{ steps.release.outputs.branch_name }}"
           NEXT_TAG="${{ steps.release.outputs.next_tag }}"
 
@@ -176,12 +138,15 @@ jobs:
           - prepares release tag ${NEXT_TAG}
           "
 
-          EXISTING_JSON="$(curl -fsSL \
+          OPEN_PRS_JSON="$(curl -fsSL \
             -H "Authorization: token ${API_TOKEN}" \
             -H "Content-Type: application/json" \
-            "${API_URL}/repos/${REPO}/pulls?state=open&head=${OWNER}:${BRANCH_NAME}&base=main")"
+            "${API_URL}/repos/${REPO}/pulls?state=open&base=main")"
 
-          PR_NUMBER="$(echo "${EXISTING_JSON}" | jq -r '.[0].number // empty')"
+          PR_NUMBER="$(echo "${OPEN_PRS_JSON}" | jq -r --arg branch "${BRANCH_NAME}" --arg repo "${REPO}" '
+            map(select(.head.ref == $branch and .head.repo.full_name == $repo))
+            | .[0].number // empty
+          ')"
 
           if [[ -z "${PR_NUMBER}" ]]; then
             jq -n \
