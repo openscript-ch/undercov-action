@@ -11,7 +11,7 @@ permissions:
 jobs:
   tag-release:
     name: Tag merged release PR
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && startsWith(github.event.pull_request.head.ref, 'release/v')
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && startsWith(github.event.pull_request.head.ref, 'release')
     runs-on: srv-obin-ch_ubuntu-latest
     outputs:
       version: ${{ steps.create-tag.outputs.tag_name }}
