@@ -11,7 +11,7 @@ permissions:
 jobs:
   tag-release:
     name: Tag merged release PR
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && startsWith(github.event.pull_request.head.ref, 'release')
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'release'
     runs-on: srv-obin-ch_ubuntu-latest
     outputs:
       version: ${{ steps.create-tag.outputs.tag_name }}
@@ -26,11 +26,16 @@ jobs:
       - name: Create and push tag
         id: create-tag
         env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
           PUSH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
+
+          extract_any_tag_name() {
+            printf '%s\n' "$1" | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
+          }
 
           if [[ -z "${PUSH_TOKEN}" ]]; then
             echo "RELEASE_BOT_TOKEN secret is not set." >&2
@@ -39,10 +44,14 @@ jobs:
             exit 1
           fi
 
-          TAG_NAME="${HEAD_REF#release/}"
+          TAG_NAME="$(extract_any_tag_name "${PR_TITLE}")"
+
+          if [[ -z "${TAG_NAME}" ]]; then
+            TAG_NAME="${HEAD_REF#release/}"
+          fi
 
           if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid tag name derived from release branch: ${TAG_NAME}" >&2
+            echo "Invalid release tag name: ${TAG_NAME}" >&2
             exit 1
           fi
 
