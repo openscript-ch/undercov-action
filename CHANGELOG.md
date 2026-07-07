@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.0 - 2026-07-07
+
+### Bug Fixes
+- Tag workflow
+- Tag workflow
+
+### Features
+- Trigger release
+
 ## v1.3.1 - 2026-07-05
 
 ### Bug Fixes
