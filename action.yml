@@ -170,6 +170,12 @@ runs:
 
         mkdir -p "${CACHE_DIR}"
 
+        # Cache archives may restore without preserving executable bit.
+        # If the binary is present, restore +x before attempting redownload.
+        if [[ -f "${BIN_PATH}" && ! -x "${BIN_PATH}" ]]; then
+          chmod +x "${BIN_PATH}" || true
+        fi
+
         if [[ ! -x "${BIN_PATH}" ]]; then
           IFS=',' read -r -a sources <<< "${SOURCES_CSV}"
           downloaded="false"
