@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.0 - 2026-07-26
+
+### Features
+- Make binary executable
+
 ## v1.4.0 - 2026-07-07
 
 ### Bug Fixes
