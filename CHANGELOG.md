@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.1 - 2026-07-27
+
+### Bug Fixes
+- Release pr for already released version
+
 ## v1.5.0 - 2026-07-26
 
 ### Features
